@@ -1,0 +1,37 @@
+[package]
+name = "lion-idle"
+version = "0.2.0"
+edition = "2021"
+description = "LionOS idle-watching daemon: dim/DPMS/lock/suspend at configurable thresholds"
+license = "MIT"
+
+[[bin]]
+name = "lion-idle"
+path = "src/main.rs"
+
+# Mock lion-locker / lion-power / lion-config peers used by the live
+# integration tests (scripts/live_idle_test.sh). Not installed by the
+# packaging; build explicitly with `cargo build --example mock-peers`.
+[[example]]
+name = "mock-peers"
+path = "examples/mock-peers.rs"
+
+[dependencies]
+zbus = { version = "4", default-features = false, features = ["tokio"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+# poll(2) for the Wayland thread's event loop (already a transitive dep of
+# wayland-backend, so this adds no new code to the build -- it only makes
+# the API usable from this crate).
+rustix = { version = "1", default-features = false, features = ["std", "event"] }
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -1,0 +1,51 @@
+[Unit]
+Description=LionOS idle-watching daemon
+Documentation=man:lion-idle(8)
+PartOf=lion-session.target
+After=lion-session.target
+# The daemon retries compositor connection in-process for the login
+# race (see src/wayland.rs); give those retries room before systemd
+# declares startup failed. Wayland-loss mid-session exits non-zero and
+# is covered by Restart below, not by this timeout.
+TimeoutStartSec=90
+
+[Service]
+Type=dbus
+BusName=os.lionos.Idle
+ExecStart=/usr/bin/lion-idle
+# Exit-code contract (see src/main.rs): startup failure, permanent
+# compositor incompatibility, and Wayland-loss are all non-zero exits;
+# a clean 0 exit only happens for --version/--print-config, which
+# never run under systemd. on-failure therefore restarts exactly the
+# cases that need it, and systemd's start limit catches a daemon that
+# can never come up.
+Restart=on-failure
+RestartSec=1
+Slice=session.slice
+
+# ---- Sandbox (session-service grade; see lion-locker.service for the
+# ---- sibling policy). This daemon needs exactly: the Wayland socket,
+# ---- the session bus, and the system bus (logind). Nothing else.
+NoNewPrivileges=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+SystemCallArchitectures=native
+# AF_UNIX only: Wayland socket, session bus, system bus. No network,
+# and unlike the locker, no netlink either -- logind is reached via
+# D-Bus.
+RestrictAddressFamilies=AF_UNIX
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=lion-session.target
